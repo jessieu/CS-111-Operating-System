@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
- #include <errno.h>
+#include <errno.h>
 
 #define BUFFER_SIZE 1024
 
