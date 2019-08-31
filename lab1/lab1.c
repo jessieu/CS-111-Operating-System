@@ -7,7 +7,8 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <sys/wait.h>
-#include <assert.h>
+#include <sys/resource.h> //for getusage()
+#include <sys/time.h>
 
 /* collect process information - initialize in command and retrieve in wait */
 struct process_info
@@ -19,9 +20,33 @@ struct process_info
 
 void sig_handler (int signo)
 {
-	 printf("received signal %d\n", signo);
+	 printf("received signal %d.\n", signo);
 }
 
+void get_starting_time (struct timeval *startingUserTime, struct timeval *startingSystemTime )
+{
+	struct rusage usage;
+	getrusage(RUSAGE_SELF, &usage);
+	*startingUserTime = usage.ru_utime;
+	startingUserTime->tv_sec = usage.ru_utime.tv_sec;
+	startingUserTime->tv_usec = usage.ru_utime.tv_usec;
+	*startingSystemTime= usage.ru_stime;
+	startingSystemTime->tv_sec = usage.ru_stime.tv_sec;
+	startingSystemTime->tv_usec = usage.ru_stime.tv_usec;
+}
+
+void print_cpu_time(struct timeval startingUserTime, struct timeval startingSystemTime)
+{
+	 struct rusage usage;
+	 getrusage (RUSAGE_SELF, &usage);
+     struct timeval endingUserTime = usage.ru_utime;
+     struct timeval endingSystemTime = usage.ru_stime;
+     long int diffUs = (long int) (endingUserTime.tv_sec - startingUserTime.tv_sec);
+     long int diffUms = (long int) (endingUserTime.tv_usec - startingUserTime.tv_usec);
+     long int diffSs = (long int) (endingSystemTime.tv_sec - startingSystemTime.tv_sec);
+     long int diffSms = (long int) (endingSystemTime.tv_usec - startingSystemTime.tv_usec);
+	 printf ("CPU time: %ld.%06ld sec user, %ld.%06ld sec system\n", diffUs, diffUms, diffSs, diffSms);
+}
 
 int main (int argc, char *argv[])
 {
@@ -40,11 +65,11 @@ int main (int argc, char *argv[])
 	pid_t *pid_arr = malloc(25 * sizeof(pid_t));
 	int pid_num = 0;
 
-	int sig = 0;
-
 	int opt = 0;
 	int verbose = 0;
 	int profile = 0;
+	struct timeval startingUserTime, startingSystemTime;
+
 	int long_index = 0;
 
 	static struct option long_options[] = {
@@ -88,34 +113,49 @@ int main (int argc, char *argv[])
 		/* -------------------rdonly------------------- */
 		case 'R':
 			if (verbose) printf("%s\n",optarg);
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_RDONLY;
 			if ((fd_list[fd_index++] = open(optarg, flag, 0)) == -1) {
 				fprintf(stderr, "Cannot open file %s with read only.\n", optarg);
 				exit(1);
 			}
 			flag = 0;
+			if(profile == 1) {
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 
 		/* -------------------wronly------------------- */
 		case 'W':
 			if (verbose) printf("%s\n",optarg);
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_WRONLY;
 			if ((fd_list[fd_index++] = open(optarg, flag, 0)) == -1) {
 				fprintf(stderr, "Cannot open file %s with write only.\n", optarg);
 				exit(1);
 			}
 			flag = 0;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 		/* -------------------command------------------- */
 		case 'C':
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			optind--;
 			int count = 0;
 			char *cmd_name[256];
 			cmd_name[count++] = strdup(long_options[long_index].name);
 
 			while (optind < argc) {
-				if (strdup(argv[optind])[0] == '-') break;
+				if (strdup(argv[optind])[0] == '-' && strdup(argv[optind])[1] == '-') break;
 				cmd_name[count++] = argv[optind++];
 			}
 			cmd_name[count] = "\0";
@@ -145,10 +185,6 @@ int main (int argc, char *argv[])
 			process_arr[process_num].pid = rc;
 			process_arr[process_num].cmd_name = cmd_name;
 			process_arr[process_num].size = count;
-			int s;
-			for (s = 0; s < process_arr[process_num].size; s++)
-				printf("%s ", process_arr[process_num].cmd_name[s]);
-			printf("%d\n", process_arr[process_num].pid);
 			process_num++;
 
 			if (rc < 0) {
@@ -174,10 +210,11 @@ int main (int argc, char *argv[])
 				// printf("Exit with code %d\n", rc_wait);
 				printf("Parent Exit\n");
 			}
+
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			//fflush(stdout);
-			for (s = 0; s < process_arr[process_num-1].size; s++)
-				printf("%s ", process_arr[process_num-1].cmd_name[s]);
-			printf("%d\n", process_arr[process_num-1].pid);
 			break;
 		/* -------------------verbose------------------- */
 		case 'V':
@@ -185,96 +222,182 @@ int main (int argc, char *argv[])
 			break;
 		/* -------------------append------------------- */
 		case 'A':
-			if (verbose) printf("%s\n",optarg);
+			if (verbose) printf("\n");
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_APPEND;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 		/* -------------------cloexec------------------- */
 		case 'L':
-			if (verbose) printf("%s\n",optarg);
+			if (verbose) printf("\n");
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_CLOEXEC;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------creat------------------- */
 		case 'c':
-			if (verbose) printf("%s\n",optarg);
+			if (verbose) printf("\n");
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_CREAT;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------directory------------------- */
 		case 'D':
-			if (verbose) printf("%s\n",optarg);
+			if (verbose) printf("\n");
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_DIRECTORY;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------dsync------------------- */
 		case 'd':
-			if (verbose) printf("%s\n",optarg);
+			if (verbose) printf("\n");
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_DSYNC;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------excl------------------- */
 		case 'E':
-			if (verbose) printf("%s\n",optarg);
+			if (verbose) printf("\n");
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_EXCL;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------nofollow------------------- */
 		case 'F':
-			if (verbose) printf("%s\n",optarg);
+			if (verbose) printf("\n");
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_NOFOLLOW;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------nonblock------------------- */
 		case 'B':
-			if (verbose) printf("%s\n",optarg);
+			if (verbose) printf("\n");
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_NONBLOCK;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------rsync------------------- */
 		case 'S':
-			if (verbose) printf("%s\n",optarg);
+			if (verbose) printf("\n");
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_RSYNC;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------sync------------------- */
 		case 's':
-			if (verbose) printf("%s\n",optarg);
+			if (verbose) printf("\n");
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_SYNC;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------trunc------------------- */
 		case 'T':
-			if (verbose) printf("%s\n",optarg);
+			if (verbose) printf("\n");
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_TRUNC;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------rdwr------------------- */
 		case 'r':
 			if (verbose) printf("%s\n",optarg);
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			flag |= O_RDWR;
 			if ((fd_list[fd_index++] = open(optarg, flag, 0)) == -1) {
 				fprintf(stderr, "RSYNC file %s failed.\n", optarg);
 				exit(1);
 			}
 			flag = 0;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------pipe------------------- */
 		case 'P':
 			if (verbose) printf("\n");
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			 /* open a pipe */
 			int fd[2];
 			pipe(fd);
 			fd_list[fd_index++] = fd[0];
 			fd_list[fd_index++] = fd[1];
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 		/* -------------------wait------------------- */
 		case 'w':
 			if (verbose) printf("\n");
+			if(profile){
+	          get_starting_time(&startingUserTime, &startingSystemTime);
+        	}
 			pid_t rc_pid;
-			int status;
-			while ((rc_pid = waitpid(-1, &status, 0)) > 0) {
-				printf("%d\n", rc_pid);
+			int i = 0;
+			for (; i < pid_num; i++) {
+				int status;
+				// rc_pid = waitpid(pid_arr[i], &status, 0);
+				// assert(rc_pid == pid_arr[i]);
+				rc_pid = wait(&status);                                 /* return the pid of finished process */
+
+				printf("Reach here\n");
 				if (rc_pid > 0)
 				{
 					if (WIFEXITED(status)) {
@@ -285,96 +408,108 @@ int main (int argc, char *argv[])
 
 					/* Find the command name according to the return pid */
 					int j;
-					printf("%d\n", process_num);
 					for (j = 0; j < process_num; j++) {
 						if (rc_pid == process_arr[j].pid) {
-							printf("%d\n", process_arr[j].pid);
-							printf("%d\n", process_arr[j].size);
-							/*Bug: only print the last command */
 							int c;
-							for (c = 0; c < process_arr[j].size; c++){
+							for (c = 0; c < process_arr[j].size; c++) {
 								printf("%s ", process_arr[j].cmd_name[c]);
 							}
-							// pid_arr[i] = -1;
 							break;
 						}
 					}
 					printf("\n");
-					printf("Should print a new command\n");
 				}
 			}
-			// for (; i < pid_num; i++) {
-			// 	int status;
-			// 	printf("%d\n", pid_arr[i]);
-			// 	rc_pid = waitpid(pid_arr[i], &status, 0);
-			// 	assert(rc_pid == pid_arr[i]);
-			// 	//rc_pid = wait(&status);                                 /* return the pid of finished process */
-			//
-			// 	if (rc_pid > 0)
-			// 	{
-			// 		if (WIFEXITED(status)) {
-			// 			printf("Child exited with RC=%d\n",WEXITSTATUS(status));
-			// 		}else if (WIFSIGNALED(status)) {
-			// 			printf("Child exited via signal %d\n",WTERMSIG(status));
-			// 		}
-			//
-			// 		/* Find the command name according to the return pid */
-			// 		int j;
-			// 		for (j = 0; j < process_num; j++) {
-			// 			if (rc_pid == process_arr[j].pid) {
-			// 				int c;
-			// 				for (c = 0; c < process_arr[j].size; c++){
-			// 					printf("%s ", process_arr[j].cmd_name[c]);
-			// 				}
-			// 				// pid_arr[i] = -1;
-			// 				break;
-			// 			}
-			// 		}
-			// 		printf("\n");
-			// 	}
-			// }
+			if(profile){
+				printf("Normal: \n");
+	          	print_cpu_time(startingUserTime, startingSystemTime);
+        	}
+			if(profile){
+				printf("Child: \n");
+	          	print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------close------------------- */
 		case 'O':
 			if (verbose) printf("%s\n",optarg);
+			if(profile == 1){
+	          get_starting_time(&startingUserTime, &startingSystemTime);
+        	}
 			close_fd = atoi(argv[optind++]);
 			close(fd_list[close_fd]);
 			fd_list[close_fd] = -1;
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------abort------------------- */
 		case 'a':
 			if (verbose) printf("%s\n",optarg);
+			if(profile == 1){
+	          get_starting_time(&startingUserTime, &startingSystemTime);
+        	}
+			fflush(stdout);
 			abort();
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------catch------------------- */
 		case 't':
 			if (verbose) printf("%s\n", optarg);
+			if(profile == 1){
+	          get_starting_time(&startingUserTime, &startingSystemTime);
+        	}
 			int sig = atoi(optarg);
-			if (signal(sig, sig_handler) == SIG_ERR)
+			if (signal(sig, sig_handler) == SIG_ERR) {
 				printf("Cannot catch signal %d \n", sig);
+			}
+			if(profile == 1){
+		         print_cpu_time(startingUserTime, startingSystemTime);
+	        }
 			break;
 
 		/* -------------------ignore------------------- */
 		case 'I':
 			if (verbose) printf("%s\n", optarg);
+			if(profile == 1){
+	          get_starting_time(&startingUserTime, &startingSystemTime);
+        	}
 			sig = atoi(optarg);
-			if (signal(sig, SIG_IGN) == SIG_ERR)
+			if (signal(sig, SIG_IGN) == SIG_ERR) {
 				printf("Cannot ignore signal %d \n", sig);
+			}
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------default------------------- */
 		case 'e':
+		if(profile == 1){
+		  get_starting_time(&startingUserTime, &startingSystemTime);
+		}
 			sig = atoi(optarg);
-			if (signal(sig, SIG_DFL) == SIG_ERR)
+			if (signal(sig, SIG_DFL) == SIG_ERR) {
 				printf("Cannot catch signal %d \n", sig);
+			}
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 		/* -------------------pause------------------- */
 		case 'p':
 			if (verbose) printf("%s\n",optarg);
+			if(profile == 1){
+			  get_starting_time(&startingUserTime, &startingSystemTime);
+			}
 			pause();
+			if(profile == 1){
+	          print_cpu_time(startingUserTime, startingSystemTime);
+        	}
 			break;
 
 		/* -------------------profile------------------- */
@@ -385,7 +520,9 @@ int main (int argc, char *argv[])
 
 		}
 	}
-
+	fflush(stdout);
 	free(fd_list);
 	free(pid_arr);
+
+	exit(0);
 }
