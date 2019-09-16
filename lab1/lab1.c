@@ -71,9 +71,13 @@ int main (int argc, char *argv[])
 	int profile = 0;
 	struct timeval startingUserTime, startingSystemTime;
 
+	/* for verbose */
+	int verbose = 0;
+
+	/* for parsing option */
 	int long_index = 0;
 	int opt = 0;
-	int verbose = 0;
+
 
 	static struct option long_options[] = {
 		/* Lab 1A */
