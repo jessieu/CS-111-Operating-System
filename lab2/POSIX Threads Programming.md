@@ -126,3 +126,37 @@
 ###### 6. Condition Variables
 
 ###### 7. Monitoring, Debugging and Performance Analysis Tools for Pthreads
+
+
+
+### Clock_gettime
+
+```c
+int clock_gettime(clockid_t clk_id, struct timespec *tp);
+```
+
+- Retrieve the time of the specified clock `clk_id`
+
+  - The `clk_id` argument is the identifier of the particular clock on which to act. A clock may be system-wide and hence visible for all processes, or per-process if it measures time only within a single process.
+
+    - real-time clock - `CLOCK_REALTIME`
+      - Its time represents seconds and nanoseconds since the Epoch.  When its time is changed, timers for a relative interval are unaffected, but timers for an absolute point in time are affected.
+    - `CLOCK_MONOTONIC`
+      - Not affected by discontinous jumps in the system time (e.g., if the system administrator manually changes the clock), but is affected by the incremental adjustments performed by `adjtime(3)` and NTP.
+      - This clock does not count time that the system is suspended.
+
+  - [Which clock to use?]: https://www.cs.rutgers.edu/~pxk/416/notes/c-tutorials/gettime.html
+
+    - For getting the system's idea of the time of day (in seconds since the Epoch), one should use `clock_gettime(CLOCK_REALTIME, &tp)`.
+    - For measuring elapsed time, CLOCK_MONOTONIC is recommended. This clock will not necessarily reflect the time of day but, unlike CLOCK_REALTIME, it is guaranteed to always be linearly increasing (although not necessarily between reboots). 
+
+- `tp` argument is *timespec* structures, as specified in *<time.h>*
+
+  ```c
+  struct timespec {
+      time_t   tv_sec;        /* seconds */
+      long     tv_nsec;       /* nanoseconds */
+  };
+  ```
+
+  

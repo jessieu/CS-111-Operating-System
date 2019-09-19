@@ -6,20 +6,37 @@
 #include <getopt.h>
 #include <pthread.h>
 
+// for elapse time calculation
+#define BILLION 1000000000L
+
+// for lock
 #define DEFAULT 0
 #define MUTEX 1
 #define SPINLOCK 2
 #define COMPARE_AND_SWAP 3
 
+long long counter;
 pthread_mutex_t counter_mutex;
 volatile int spin_lock = 0;
-long long counter;
-
 int lock;
 
-
+// for yield option
 int opt_yield;
-// The worker function
+
+// program name
+char name[20] = "";
+
+// program usage information
+char *USAGE =
+	"Usage: lab2_add [--threads 5] [--iterations 3] [yield] [sync=[msc]]\n";
+
+// handle bad option
+void exit_with_usage() {
+	fprintf(stderr, "%s", USAGE);
+	exit(EXIT_SUCCESS);
+}
+
+// Critical section
 void add(long long *pointer, long long value) {
 	long long sum = *pointer + value;
     if (opt_yield) // the calling thread relinquish the CPU
@@ -27,11 +44,9 @@ void add(long long *pointer, long long value) {
 	*pointer = sum;
 }
 
-void lock_helper() {
-    long long value = 1;
+// synchronization for each thread
+void lock_helper(long long value) {
     switch (lock) {
-        case 0:
-            break;
         case 1:
             pthread_mutex_lock(&counter_mutex);
             add(&counter, value);
@@ -47,28 +62,44 @@ void lock_helper() {
         case 3:
             ;
             long long old_val, new_val;
-
             do {
                 old_val = counter;
-                new_val = old_val + value;
-                if (opt_yield) sched_yield();
+				new_val = old_val + value;
+				if (opt_yield) sched_yield();
             } while (__sync_val_compare_and_swap(&counter, old_val, new_val) != old_val);
             printf("%d\n", counter);
             break;
+		default:
+			add(&counter, value);
+			break;
     }
 
 }
 
-char *USAGE = "Usage: lab2_add [--threads 5] [--iterations 3]\n";
+// The worker function
+void *worker (void *num) {
+	int iterations = *((int *) num);
+	int i;
+	for (i = 0; i < iterations; i++) {
+		lock_helper(1);
+	}
+	for (i = 0; i < iterations; i++) {
+		lock_helper(-1);
+	}
+}
 
 void thread_mangager(int num_threads, int num_iterations) {
     pthread_t *threads = (pthread_t*) malloc(num_threads * sizeof(pthread_t));
     long i;
     int rc;
+
+	int *arg = malloc(sizeof(int));
+	*arg = num_iterations;
+	printf("num_iterations: %d\n", *arg);
     // thread creation
     for (i = 0; i < num_threads; i++) {
         printf("In main: creating thread %ld\n", i);
-        rc = pthread_create(&threads[i], NULL, lock_helper, NULL);
+        rc = pthread_create(&threads[i], NULL, worker, arg);
         if (rc){
            printf("ERROR; return code from pthread_create() is %d\n", rc);
            exit(1);
@@ -76,19 +107,37 @@ void thread_mangager(int num_threads, int num_iterations) {
     }
     // wait for all threads completion
     for (i = 0; i < num_threads; ++i) {
-		if (pthread_join(threads[i], NULL) != 0)
+		if (pthread_join(threads[i], NULL) != 0) {
 			fprintf(stderr, "%s\n", "Some errors on joining threads");
             exit(1);
+		}
 	}
+	printf("Thread join succeeds!!\n");
 
     free(threads);
+	free(arg);
 
 }
 
-
-void exit_with_usage() {
-	fprintf(stderr, "%s", USAGE);
-	exit(EXIT_SUCCESS);
+// set the program name
+void set_tag () {
+	strcat(name, "add");
+	if (opt_yield)
+		strcat(name, "-yield");
+	switch (lock) {
+		case 1 :
+			strcat(name, "-m");
+			break;
+		case 2:
+			strcat(name, "-s");
+			break;
+		case 3:
+			strcat(name, "-c");
+			break;
+		default:
+			strcat(name, "-none");
+			break;
+	}
 }
 
 int main(int argc, char* argv[]) {
@@ -112,13 +161,12 @@ int main(int argc, char* argv[]) {
 		{0,0,0,0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "T:I", long_options, &long_index)) != -1) {
+	while ((opt = getopt_long(argc, argv, "T:I:Y:S:", long_options, &long_index)) != -1) {
 		switch(opt) {
-			if (optarg < 1) break;
 		case 'T':
 			num_threads = atoi(optarg);
 			if (num_threads < 1) {
-				fprintf(stderr, "Expected positive integer after --iterations\n");
+				fprintf(stderr, "Expected positive integer after --threads\n");
 				exit_with_usage();
 			}
 			printf("Number of threads: %d\n", num_threads);
@@ -138,7 +186,7 @@ int main(int argc, char* argv[]) {
             switch (optarg[0]) {
                 case 'm': // Mutex
                     lock = MUTEX;
-                    printf("%d\n", lock);
+					pthread_mutex_init(&counter_mutex, NULL);
                     break;
                 case 's': //Spinlock
                     lock = SPINLOCK;
@@ -154,6 +202,35 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	//uint64_t elapsed;
+	struct timespec start, end;
+
+	// Collect start time
+	if (clock_gettime(CLOCK_MONOTONIC, &start) < 0) {
+		fprintf(stderr, "Error on getting clock time.\n");
+		exit(1);
+	}
+
     thread_mangager(num_threads, num_iterations);
 
+	// Collect end time
+	if (clock_gettime(CLOCK_MONOTONIC, &end) < 0) {
+		fprintf(stderr, "Error on getting clock time.\n");
+		exit(1);
+	}
+
+	// Data preparation
+	long long unsigned int elapsed = BILLION * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec;
+	printf("elapsed time = %llu nanoseconds\n", elapsed);
+
+	int num_operations = num_threads * num_iterations  * 2;
+	int avg_op_time = elapsed / num_operations;
+
+	// get the program name
+	set_tag();
+
+	// Data report
+	printf("%s %d %d %d %llu %d %d\n",
+			name, num_threads, num_iterations, num_operations,
+			elapsed, avg_op_time, counter);
 }
