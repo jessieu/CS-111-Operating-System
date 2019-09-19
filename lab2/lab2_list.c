@@ -32,128 +32,126 @@ void *worker (void *num) {
 	// insert elements into list
 	for (i = 0; i < iterations; i++) {
 		switch (lock) {
-        case 1:
-			printf("Inside mutex\n");
-            pthread_mutex_lock(&counter_mutex);
-            SortedList_insert(list, &elem[i]);
-            pthread_mutex_unlock(&counter_mutex);
-			printf("Outside mutex\n");
-            break;
-        case 2:
-            while (__sync_lock_test_and_set(&spin_lock, 1)) while(spin_lock);
-            SortedList_insert(list, &elem[i]);
-            __sync_lock_release(&spin_lock);
-            break;
+		case 1:
+			pthread_mutex_lock(&counter_mutex);
+			SortedList_insert(list, &elem[i]);
+			pthread_mutex_unlock(&counter_mutex);
+			break;
+		case 2:
+			while (__sync_lock_test_and_set(&spin_lock, 1)) while(spin_lock);
+			SortedList_insert(list, &elem[i]);
+			__sync_lock_release(&spin_lock);
+			break;
 		default:
 			SortedList_insert(list, &elem[i]);
 			break;
-    }
+		}
 	}
 
 	// get length
 	int length;
 	switch (lock) {
-		case 1:
-            pthread_mutex_lock(&counter_mutex);
-            length = SortedList_length(list);
-			if (length < 0) {
-				fprintf(stderr, "Cannot get the length of sorted list.\n");
-				exit(2);
-			}
-            pthread_mutex_unlock(&counter_mutex);
-            break;
-        case 2:
-            while (__sync_lock_test_and_set(&spin_lock, 1)) while(spin_lock);
-            length = SortedList_length(list);
-			if (length < 0) {
-				fprintf(stderr, "Cannot get the length of sorted list.\n");
-				exit(2);
-			}
-            __sync_lock_release(&spin_lock);
-            break;
-		default:
-			length = SortedList_length(list);
-			if (length < 0) {
-				fprintf(stderr, "Cannot get the length of sorted list.\n");
-				exit(2);
-			}
-			break;
-    }
+	case 1:
+		pthread_mutex_lock(&counter_mutex);
+		length = SortedList_length(list);
+		if (length < 0) {
+			fprintf(stderr, "Cannot get the length of sorted list.\n");
+			exit(2);
+		}
+		pthread_mutex_unlock(&counter_mutex);
+		break;
+	case 2:
+		while (__sync_lock_test_and_set(&spin_lock, 1)) while(spin_lock);
+		length = SortedList_length(list);
+		if (length < 0) {
+			fprintf(stderr, "Cannot get the length of sorted list.\n");
+			exit(2);
+		}
+		__sync_lock_release(&spin_lock);
+		break;
+	default:
+		length = SortedList_length(list);
+		if (length < 0) {
+			fprintf(stderr, "Cannot get the length of sorted list.\n");
+			exit(2);
+		}
+		break;
+	}
 
 	// looks up and deletes
 	for (i = 0; i < iterations; i++) {
 		SortedListElement_t *cur;
 		switch (lock) {
 		case 1:
-            pthread_mutex_lock(&counter_mutex);
+			pthread_mutex_lock(&counter_mutex);
 			cur = SortedList_lookup (list, elem[i].key);
 			if (cur == NULL) {
 				fprintf(stderr, "Cannot find the element.\n");
 				exit(2);
 			}
-            if (SortedList_delete(cur) != 0) {
+			if (SortedList_delete(cur) != 0) {
 				fprintf(stderr, "Cannot delete the element.\n");
 				exit(2);
 			};
-            pthread_mutex_unlock(&counter_mutex);
-            break;
-        case 2:
-            while (__sync_lock_test_and_set(&spin_lock, 1)) while(spin_lock);
-            cur = SortedList_lookup (list, elem[i].key);
+			pthread_mutex_unlock(&counter_mutex);
+			break;
+		case 2:
+			while (__sync_lock_test_and_set(&spin_lock, 1)) while(spin_lock);
+			cur = SortedList_lookup (list, elem[i].key);
 			if (cur == NULL) {
 				fprintf(stderr, "Cannot find the element.\n");
 				exit(2);
 			}
-            if (SortedList_delete(cur) != 0) {
+			if (SortedList_delete(cur) != 0) {
 				fprintf(stderr, "Cannot delete the element.\n");
 				exit(2);
 			};
-            __sync_lock_release(&spin_lock);
-            break;
+			__sync_lock_release(&spin_lock);
+			break;
 		default:
 			cur = SortedList_lookup(list, elem[i].key);
 			if (cur == NULL) {
 				fprintf(stderr, "Cannot find the element.\n");
 				exit(2);
 			}
-            if (SortedList_delete(cur) != 0) {
+			if (SortedList_delete(cur) != 0) {
 				fprintf(stderr, "Cannot delete the element.\n");
 				exit(2);
 			};
 			break;
-    }
+		}
 	}
 
 }
 
 void thread_mangager(int num_threads, int num_iterations) {
-    pthread_t *threads = (pthread_t*) malloc(num_threads * sizeof(pthread_t));
-    long i;
-    int rc;
+	pthread_t *threads = (pthread_t*) malloc(num_threads * sizeof(pthread_t));
+	long i;
+	int rc;
 
 	int *arg = (int*) malloc(num_threads * sizeof(int));
 
-    // thread creation
-    for (i = 0; i < num_threads; i++) {
+	// thread creation
+	for (i = 0; i < num_threads; i++) {
 		arg[i] = i;
-        printf("In main: creating thread %ld\n", i);
+		printf("In main: creating thread %ld\n", i);
 		//The value of arg is the key to avoid deadlock!!!
-        rc = pthread_create(&threads[i], NULL, worker, arg);
-        if (rc){
-           printf("ERROR; return code from pthread_create() is %d\n", rc);
-           exit(1);
-       }
-    }
-    // wait for all threads completion
-    for (i = 0; i < num_threads; ++i) {
+		rc = pthread_create(&threads[i], NULL, worker, arg);
+		if (rc) {
+			printf("ERROR; return code from pthread_create() is %d\n", rc);
+			exit(1);
+		}
+	}
+	// wait for all threads completion
+	for (i = 0; i < num_threads; ++i) {
 		if (pthread_join(threads[i], NULL) != 0) {
 			fprintf(stderr, "%s\n", "Some errors on joining threads");
-            exit(1);
+			exit(1);
 		}
 	}
 	printf("Thread join succeeds!!\n");
 
-    free(threads);
+	free(threads);
 	free(arg);
 
 }
@@ -179,21 +177,21 @@ void get_yield_op (char *optarg) {
 	int i;
 	for (i = 0; i < len; i++) {
 		switch(optarg[i]) {
-			case 'i':
-				opt_yield |= INSERT_YIELD;
-				strcat(yield_str, "i");
-				break;
-			case 'd':
-				opt_yield |= DELETE_YIELD;
-				strcat(yield_str, "d");
-				break;
-			case 'l':
-				opt_yield |= LOOKUP_YIELD;
-				strcat(yield_str, "l");
-				break;
-			default:
-				printf("Unrecognized argument for yield.\n");
-				exit_with_usage();
+		case 'i':
+			opt_yield |= INSERT_YIELD;
+			strcat(yield_str, "i");
+			break;
+		case 'd':
+			opt_yield |= DELETE_YIELD;
+			strcat(yield_str, "d");
+			break;
+		case 'l':
+			opt_yield |= LOOKUP_YIELD;
+			strcat(yield_str, "l");
+			break;
+		default:
+			printf("Unrecognized argument for yield.\n");
+			exit_with_usage();
 		}
 	}
 }
@@ -233,15 +231,15 @@ void set_tag () {
 	}
 
 	switch (lock) {
-		case 1 :
-			strcat(name, "-m");
-			break;
-		case 2:
-			strcat(name, "-s");
-			break;
-		default:
-			strcat(name, "-none");
-			break;
+	case 1:
+		strcat(name, "-m");
+		break;
+	case 2:
+		strcat(name, "-s");
+		break;
+	default:
+		strcat(name, "-none");
+		break;
 	}
 }
 
@@ -258,9 +256,9 @@ int main(int argc, char* argv[]) {
 	static struct option long_options[] = {
 		{"threads",       required_argument, 0,  'T' },
 		{"iterations",    required_argument, 0,  'I' },
-        {"yield",   required_argument, 0, 'Y'},
-        {"sync", required_argument, 0, 'S'},
-		{0,0,0,0}
+		{"yield",   	  required_argument, 0,  'Y' },
+		{"sync", 		  required_argument, 0,  'S' },
+		{  0,					0,			 0,	  0  }
 	};
 
 	while ((opt = getopt_long(argc, argv, "T:I:Y:S:", long_options, &long_index)) != -1) {
@@ -280,25 +278,25 @@ int main(int argc, char* argv[]) {
 			}
 			printf("Number of iterations: %d\n", num_iterations);
 			break;
-        case 'Y':
-            get_yield_op(optarg);
-            break;
-        case 'S':
-            switch (optarg[0]) {
-                case 'm': // Mutex
-                    lock = MUTEX;
-					pthread_mutex_init(&counter_mutex, NULL);
-                    break;
-                case 's': //Spinlock
-                    lock = SPINLOCK;
-					spin_lock = 0;
-                    break;
-                default:
-					lock = 0;
-					fprintf(stderr, "Unrecognized argument for sync: %s\n", optarg[0]);
-                    exit_with_usage();
-            }
-            break;
+		case 'Y':
+			get_yield_op(optarg);
+			break;
+		case 'S':
+			switch (optarg[0]) {
+			case 'm':     // Mutex
+				lock = MUTEX;
+				pthread_mutex_init(&counter_mutex, NULL);
+				break;
+			case 's':     //Spinlock
+				lock = SPINLOCK;
+				spin_lock = 0;
+				break;
+			default:
+				lock = 0;
+				fprintf(stderr, "Unrecognized argument for sync: %s\n", optarg[0]);
+				exit_with_usage();
+			}
+			break;
 		default:
 			fprintf(stderr, "Unrecognized option: %s\n", opt);
 			exit_with_usage();
@@ -309,7 +307,7 @@ int main(int argc, char* argv[]) {
 	const int num_elements = num_threads * num_iterations;
 
 	// Initialize an empty list
-    list = (SortedList_t *) malloc (sizeof(SortedList_t));
+	list = (SortedList_t *) malloc (sizeof(SortedList_t));
 	list->prev = list;
 	list->next = list;
 	list->key = NULL;
@@ -317,7 +315,7 @@ int main(int argc, char* argv[]) {
 	elem = (SortedListElement_t*) malloc(num_elements * sizeof(SortedListElement_t));;
 	int i, l;
 	for (i = 0; i < num_elements; i++) {
-		l = rand() % 10; // randomly pick size for the string
+		l = rand() % 10;         // randomly pick size for the string
 		elem[i].key = rand_str(l);
 	}
 
@@ -329,7 +327,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-    thread_mangager(num_threads, num_iterations);
+	thread_mangager(num_threads, num_iterations);
 
 	// Collect end time
 	if (clock_gettime(CLOCK_MONOTONIC, &end) < 0) {
@@ -354,8 +352,8 @@ int main(int argc, char* argv[]) {
 
 	// Data report
 	printf("%s, %d, %d, %d, %llu, %d\n",
-			name, num_threads, num_iterations, num_operations,
-			elapsed, avg_op_time);
+	       name, num_threads, num_iterations, num_operations,
+	       elapsed, avg_op_time);
 
 	free(elem);
 	free(list);

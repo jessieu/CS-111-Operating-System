@@ -39,40 +39,37 @@ void exit_with_usage() {
 // Critical section
 void add(long long *pointer, long long value) {
 	long long sum = *pointer + value;
-    if (opt_yield) // the calling thread relinquish the CPU
-        sched_yield(); // always succeeds
+	if (opt_yield) // the calling thread relinquish the CPU
+		sched_yield(); // always succeeds
 	*pointer = sum;
 }
 
 // synchronization for each thread
 void lock_helper(long long value) {
-    switch (lock) {
-        case 1:
-            pthread_mutex_lock(&counter_mutex);
-            add(&counter, value);
-            pthread_mutex_unlock(&counter_mutex);
-            printf("%d\n", counter);
-            break;
-        case 2:
-            while (__sync_lock_test_and_set(&spin_lock, 1)) while(spin_lock);
-            add(&counter, value);
-            __sync_lock_release(&spin_lock);
-            printf("%d\n", counter);
-            break;
-        case 3:
-            ;
-            long long old_val, new_val;
-            do {
-                old_val = counter;
-				new_val = old_val + value;
-				if (opt_yield) sched_yield();
-            } while (__sync_val_compare_and_swap(&counter, old_val, new_val) != old_val);
-            printf("%d\n", counter);
-            break;
-		default:
-			add(&counter, value);
-			break;
-    }
+	switch (lock) {
+	case 1:
+		pthread_mutex_lock(&counter_mutex);
+		add(&counter, value);
+		pthread_mutex_unlock(&counter_mutex);
+		break;
+	case 2:
+		while (__sync_lock_test_and_set(&spin_lock, 1)) while(spin_lock);
+		add(&counter, value);
+		__sync_lock_release(&spin_lock);
+		break;
+	case 3:
+		;
+		long long old_val, new_val;
+		do {
+			old_val = counter;
+			new_val = old_val + value;
+			if (opt_yield) sched_yield();
+		} while (__sync_val_compare_and_swap(&counter, old_val, new_val) != old_val);
+		break;
+	default:
+		add(&counter, value);
+		break;
+	}
 
 }
 
@@ -89,32 +86,32 @@ void *worker (void *num) {
 }
 
 void thread_mangager(int num_threads, int num_iterations) {
-    pthread_t *threads = (pthread_t*) malloc(num_threads * sizeof(pthread_t));
-    long i;
-    int rc;
+	pthread_t *threads = (pthread_t*) malloc(num_threads * sizeof(pthread_t));
+	long i;
+	int rc;
 
 	int *arg = malloc(sizeof(int));
 	*arg = num_iterations;
 	printf("num_iterations: %d\n", *arg);
-    // thread creation
-    for (i = 0; i < num_threads; i++) {
-        printf("In main: creating thread %ld\n", i);
-        rc = pthread_create(&threads[i], NULL, worker, arg);
-        if (rc){
-           printf("ERROR; return code from pthread_create() is %d\n", rc);
-           exit(1);
-       }
-    }
-    // wait for all threads completion
-    for (i = 0; i < num_threads; ++i) {
+	// thread creation
+	for (i = 0; i < num_threads; i++) {
+		printf("In main: creating thread %ld\n", i);
+		rc = pthread_create(&threads[i], NULL, worker, arg);
+		if (rc) {
+			printf("ERROR; return code from pthread_create() is %d\n", rc);
+			exit(1);
+		}
+	}
+	// wait for all threads completion
+	for (i = 0; i < num_threads; ++i) {
 		if (pthread_join(threads[i], NULL) != 0) {
 			fprintf(stderr, "%s\n", "Some errors on joining threads");
-            exit(1);
+			exit(1);
 		}
 	}
 	printf("Thread join succeeds!!\n");
 
-    free(threads);
+	free(threads);
 	free(arg);
 
 }
@@ -125,18 +122,18 @@ void set_tag () {
 	if (opt_yield)
 		strcat(name, "-yield");
 	switch (lock) {
-		case 1 :
-			strcat(name, "-m");
-			break;
-		case 2:
-			strcat(name, "-s");
-			break;
-		case 3:
-			strcat(name, "-c");
-			break;
-		default:
-			strcat(name, "-none");
-			break;
+	case 1:
+		strcat(name, "-m");
+		break;
+	case 2:
+		strcat(name, "-s");
+		break;
+	case 3:
+		strcat(name, "-c");
+		break;
+	default:
+		strcat(name, "-none");
+		break;
 	}
 }
 
@@ -147,8 +144,8 @@ int main(int argc, char* argv[]) {
 	// Number of iterations the user specified
 	int num_iterations = 1;
 
-    // Initialize the long long counterer
-    counter = 0;
+	// Initialize the long long counterer
+	counter = 0;
 
 	int long_index = 0;
 	int opt = 0;
@@ -156,9 +153,9 @@ int main(int argc, char* argv[]) {
 	static struct option long_options[] = {
 		{"threads",       required_argument, 0,  'T' },
 		{"iterations",    required_argument, 0,  'I' },
-        {"yield",   no_argument, 0, 'Y'},
-        {"sync", required_argument, 0, 'S'},
-		{0,0,0,0}
+		{"yield",   	  no_argument,       0,  'Y' },
+		{"sync",          required_argument, 0,  'S' },
+		{  0,					0,			 0,	  0  }
 	};
 
 	while ((opt = getopt_long(argc, argv, "T:I:Y:S:", long_options, &long_index)) != -1) {
@@ -179,23 +176,23 @@ int main(int argc, char* argv[]) {
 			}
 			printf("Number of iterations: %d\n", num_iterations);
 			break;
-        case 'Y':
-            opt_yield = 1;
-            break;
-        case 'S':
-            switch (optarg[0]) {
-                case 'm': // Mutex
-                    lock = MUTEX;
-					pthread_mutex_init(&counter_mutex, NULL);
-                    break;
-                case 's': //Spinlock
-                    lock = SPINLOCK;
-                    break;
-                case 'c': //Compare and swap
-                    lock = COMPARE_AND_SWAP;
-                    break;
-            }
-            break;
+		case 'Y':
+			opt_yield = 1;
+			break;
+		case 'S':
+			switch (optarg[0]) {
+			case 'm':     // Mutex
+				lock = MUTEX;
+				pthread_mutex_init(&counter_mutex, NULL);
+				break;
+			case 's':     //Spinlock
+				lock = SPINLOCK;
+				break;
+			case 'c':     //Compare and swap
+				lock = COMPARE_AND_SWAP;
+				break;
+			}
+			break;
 		default:
 			fprintf(stderr, "Unrecognized option: %s\n", opt);
 			exit_with_usage();
@@ -211,7 +208,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-    thread_mangager(num_threads, num_iterations);
+	thread_mangager(num_threads, num_iterations);
 
 	// Collect end time
 	if (clock_gettime(CLOCK_MONOTONIC, &end) < 0) {
@@ -231,6 +228,6 @@ int main(int argc, char* argv[]) {
 
 	// Data report
 	printf("%s %d %d %d %llu %d %d\n",
-			name, num_threads, num_iterations, num_operations,
-			elapsed, avg_op_time, counter);
+	       name, num_threads, num_iterations, num_operations,
+	       elapsed, avg_op_time, counter);
 }
