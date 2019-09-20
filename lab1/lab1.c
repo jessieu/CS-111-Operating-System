@@ -52,6 +52,7 @@ void print_cpu_time(struct timeval startingUserTime, struct timeval startingSyst
 
 int main (int argc, char *argv[])
 {
+<<<<<<< HEAD
     /* array to store file descriptors */
     int *fd_list = (int *)malloc(25 * sizeof(int));
     int fd_index = 0;
@@ -204,6 +205,70 @@ int main (int argc, char *argv[])
 		for (k = 0; k < fd_index; k++) {
 		    close (fd_list[k]);
 		    fd_list[k] = -1;
+
+	/* array to store file descriptors */
+	int *fd_list = (int *)malloc(25 * sizeof(int));
+	int fd_index = 0;
+	int flag = 0;
+
+	int close_fd = 0;
+
+	/* array to store process information */
+	struct process_info *process_arr = malloc(50 * sizeof(process_info));
+	int process_num = 0;
+
+	/* array to store process id */
+	pid_t *pid_arr = malloc(25 * sizeof(pid_t));
+	int pid_num = 0;
+
+	/* for profile */
+	int profile = 0;
+	struct timeval startingUserTime, startingSystemTime;
+
+	/* for verbose */
+	int verbose = 0;
+
+	/* for parsing option */
+	int long_index = 0;
+	int opt = 0;
+
+
+	static struct option long_options[] = {
+		/* Lab 1A */
+		{"rdonly",     required_argument, 0,  'R' },
+		{"wronly",     required_argument, 0,  'W' },
+		{"command",    required_argument, 0,  'C' },
+		{"verbose",    no_argument,       0,  'V' },
+		/* Lab 1B */
+		{"append",     no_argument,       0,  'A' },
+		{"cloexec",    no_argument,       0,  'L' },
+		{"creat",      no_argument,       0,  'c' },
+		{"directory",  no_argument,       0,  'D' },
+		{"dsync",      no_argument,       0,  'd' },
+		{"excl",       no_argument,       0,  'E' },
+		{"nofollow",   no_argument,       0,  'F' },
+		{"nonblock",   no_argument,       0,  'B' },
+		{"rsync",      no_argument,       0,  'S' },
+		{"sync",       no_argument,       0,  's' },
+		{"trunc",      no_argument,       0,  'T' },
+		{"rdwr",       no_argument,       0,  'r' },
+		{"pipe",       no_argument,       0,  'P' },
+		{"wait",       no_argument,       0,  'w' },
+		{"close",      required_argument, 0,  'O' },
+		{"abort",      no_argument,       0,  'a' },
+		{"catch",      required_argument, 0,  't' },
+		{"ignore",     required_argument, 0,  'I' },
+		{"default",    required_argument, 0,  'e' },
+		{"pause",      no_argument,       0,  'p' },
+		/* Lab 1C */
+		{"profile",    no_argument,       0,  'o' },
+		{0,            0,                 0,   0  }
+	};
+
+	while ((opt = getopt_long(argc, argv, "R:W:C:VALcDdEFBSsTrPwO:at:I:e:po", long_options, &long_index)) != -1) {
+
+		if (verbose) {
+			printf("--%s ",long_options[long_index].name);
 		}
 		if (execvp (args[0], args) < 0) {
 		    fprintf(stderr, "Cannot execute command.\n");
