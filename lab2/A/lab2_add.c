@@ -92,10 +92,9 @@ void thread_mangager(int num_threads, int num_iterations) {
 
 	int *arg = malloc(sizeof(int));
 	*arg = num_iterations;
-	printf("num_iterations: %d\n", *arg);
+
 	// thread creation
 	for (i = 0; i < num_threads; i++) {
-		printf("In main: creating thread %ld\n", i);
 		rc = pthread_create(&threads[i], NULL, worker, arg);
 		if (rc) {
 			printf("ERROR; return code from pthread_create() is %d\n", rc);
@@ -109,7 +108,6 @@ void thread_mangager(int num_threads, int num_iterations) {
 			exit(1);
 		}
 	}
-	printf("Thread join succeeds!!\n");
 
 	free(threads);
 	free(arg);
@@ -166,7 +164,6 @@ int main(int argc, char* argv[]) {
 				fprintf(stderr, "Expected positive integer after --threads\n");
 				exit_with_usage();
 			}
-			printf("Number of threads: %d\n", num_threads);
 			break;
 		case 'I':
 			num_iterations = atoi(optarg);
@@ -174,7 +171,6 @@ int main(int argc, char* argv[]) {
 				fprintf(stderr, "Expected positive integer after --iterations\n");
 				exit_with_usage();
 			}
-			printf("Number of iterations: %d\n", num_iterations);
 			break;
 		case 'Y':
 			opt_yield = 1;
@@ -217,8 +213,8 @@ int main(int argc, char* argv[]) {
 	}
 
 	// Data preparation
-	long long unsigned int elapsed = BILLION * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec;
-	printf("elapsed time = %llu nanoseconds\n", elapsed);
+	long long unsigned int elapsed =
+		BILLION * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec;
 
 	int num_operations = num_threads * num_iterations  * 2;
 	int avg_op_time = elapsed / num_operations;

@@ -159,4 +159,20 @@ int clock_gettime(clockid_t clk_id, struct timespec *tp);
   };
   ```
 
-  
+
+
+
+### Multi-threaded Execution Profiling Tool
+
+- Standard Linux Profiling tools:
+  1. *gprof* 
+     - easy to use
+     - Not multi-thread safe
+  2. *valgrind*
+     - Memory leak detector
+     - works for multi-threaded program
+     - But does not provide much parallelism => not useful for examing high contention situations
+  3. *gperftools*
+     - a set of performance optimization tools 
+     - include a profiler that is quite similar to the *gprof* 
+     - ideal for this project 
