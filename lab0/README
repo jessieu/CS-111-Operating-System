@@ -1,7 +1,3 @@
-NAME: Weilan Yu
-EMAIL: yuweilan@g.ucla.edu
-ID: 005119471
-
 1. General Idea
    - lab0.c 
      - This program copies the standard input to the standard output by default.
