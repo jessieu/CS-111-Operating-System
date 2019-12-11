@@ -1,0 +1,325 @@
+Total: 1592 samples
+    1475  92.7%  92.7%     1591  99.9% worker
+      95   6.0%  98.6%       95   6.0% __strcmp_sse42
+      11   0.7%  99.3%       54   3.4% SortedList_insert
+       7   0.4%  99.7%       61   3.8% SortedList_lookup
+       2   0.1%  99.9%        2   0.1% _init
+       1   0.1%  99.9%     1592 100.0% __clone
+       1   0.1% 100.0%        1   0.1% hash_func
+       0   0.0% 100.0%        1   0.1% __libc_start_main
+       0   0.0% 100.0%        1   0.1% __pthread_create_2_1
+       0   0.0% 100.0%        1   0.1% _start
+       0   0.0% 100.0%        1   0.1% do_clone.constprop.4
+       0   0.0% 100.0%        1   0.1% main
+       0   0.0% 100.0%     1591  99.9% start_thread
+       0   0.0% 100.0%        1   0.1% thread_mangager
+ROUTINE ====================== worker in /u/cs/ugrad/weilan/CS_111/lab2/lab2b/lab2_list.c
+  1475   1591 Total samples (flat / cumulative)
+     .      .   69: }
+     .      .   70: 
+     .      .   71: 
+     .      .   72: // The worker function
+     .      .   73: void *worker (void *num)
+---
+     .      .   74: {
+     .      .   75:     int n = *((int *) num);
+     .      .   76:     struct timespec start, end;
+     .      .   77: 
+     .      .   78:     int i;
+     .      .   79:     // insert elements into list
+     .      .   80:     for (i = n; i < num_elements; i += num_threads)
+     .      .   81:     {
+     .      1   82:         unsigned long index = hash_func(elem[i].key) % num_lists;
+     .      .   83:        
+     .      .   84:         switch (lock)
+     .      .   85:         {
+     .      .   86:         case 1:
+     .      .   87:             clock_gettime(CLOCK_MONOTONIC, &start);
+     .      .   88:             pthread_mutex_lock(&m_locks[index]);
+     .      .   89:             clock_gettime(CLOCK_MONOTONIC, &end);
+     .      .   90: 
+     .      .   91:             SortedList_insert(&all_lists[index], &elem[i]);
+     .      .   92: 
+     .      .   93:             pthread_mutex_unlock(&m_locks[index]);
+     .      .   94:             wait_time += calc_diff(&start, &end);
+     .      .   95:             break;
+     .      .   96:         case 2:
+     .      .   97:             clock_gettime(CLOCK_MONOTONIC, &start);
+   773    773   98:             while (__sync_lock_test_and_set(&s_locks[index], 1));
+     .      .   99:             clock_gettime(CLOCK_MONOTONIC, &end);
+     .      .  100: 
+     .     54  101:             SortedList_insert(&all_lists[index], &elem[i]);
+     .      .  102:             __sync_lock_release(&s_locks[index]);
+     .      .  103:             wait_time += calc_diff(&start, &end);
+     .      .  104:             break;
+     .      .  105:         default:
+     .      .  106:             SortedList_insert(&all_lists[index], &elem[i]);
+     .      .  107:             break;
+     .      .  108:         }
+     .      .  109:     }
+     .      .  110: 
+     .      .  111:     // get length
+     .      .  112:     int length = 0;
+     .      .  113: 
+     .      .  114:     switch (lock)
+     .      .  115:     {
+     .      .  116:     case 1:
+     .      .  117:         for (int i = 0; i < num_lists; i++)
+     .      .  118:         {
+     .      .  119:             clock_gettime(CLOCK_MONOTONIC, &start);
+     .      .  120:             pthread_mutex_lock(&m_locks[i]);
+     .      .  121:             clock_gettime(CLOCK_MONOTONIC, &end);
+     .      .  122: 
+     .      .  123:             length += SortedList_length(&all_lists[i]);
+     .      .  124:             pthread_mutex_unlock(&m_locks[i]);
+     .      .  125:             wait_time += calc_diff(&start, &end);
+     .      .  126:         }
+     .      .  127:         break;
+     .      .  128:     case 2:
+     .      .  129:         for (int i = 0; i < num_lists; i++)
+     .      .  130:         {
+     .      .  131:             clock_gettime(CLOCK_MONOTONIC, &start);
+     1      1  132:             while (__sync_lock_test_and_set(&s_locks[i], 1));
+     .      .  133:             clock_gettime(CLOCK_MONOTONIC, &end);
+     .      .  134:             length += SortedList_length(&all_lists[i]);
+     .      .  135:             __sync_lock_release(&s_locks[i]);
+     .      .  136:             wait_time += calc_diff(&start, &end);
+     .      .  137:         }
+     .      .  138:         break;
+     .      .  139:     default:
+     .      .  140:         for (int i = 0; i < num_lists; i++)
+     .      .  141:         {
+     .      .  142:             length += SortedList_length(&all_lists[i]);
+     .      .  143:         }
+     .      .  144:         break;
+     .      .  145:     }
+     .      .  146: 
+     .      .  147:     if (length < 0)
+     .      .  148:     {
+     .      .  149:         fprintf(stderr, "List corrupted in finding length.\n");
+     .      .  150:         exit(2);
+     .      .  151:     }
+     .      .  152: 
+     .      .  153:     // looks up and deletes
+     .      .  154:     for (i = n; i < num_elements; i += num_threads)
+     .      .  155:     {
+     .      .  156:         int index = hash_func(elem[i].key) % num_lists;
+     .      .  157:         SortedListElement_t *cur;
+     .      .  158:         switch (lock)
+     .      .  159:         {
+     .      .  160:         case 1:
+     .      .  161:             clock_gettime(CLOCK_MONOTONIC, &start);
+     .      .  162:             pthread_mutex_lock(&m_locks[index]);
+     .      .  163:             clock_gettime(CLOCK_MONOTONIC, &end);
+     .      .  164: 
+     .      .  165:             cur = SortedList_lookup (&all_lists[index], elem[i].key);
+     .      .  166:             if (cur == NULL)
+     .      .  167:             {
+     .      .  168:                 fprintf(stderr, "List corrupted in lookup.\n");
+     .      .  169:                 exit(2);
+     .      .  170:             }
+     .      .  171:             if (SortedList_delete(cur))
+     .      .  172:             {
+     .      .  173:                 fprintf(stderr, "List corrupted in deletion.\n");
+     .      .  174:                 exit(2);
+     .      .  175:             };
+     .      .  176:             pthread_mutex_unlock(&m_locks[index]);
+     .      .  177:             wait_time += calc_diff(&start, &end);
+     .      .  178:             break;
+     .      .  179:         case 2:
+     .      .  180:             clock_gettime(CLOCK_MONOTONIC, &start);
+   701    701  181:             while (__sync_lock_test_and_set(&s_locks[index], 1));
+     .      .  182:             clock_gettime(CLOCK_MONOTONIC, &end);
+     .     61  183:             cur = SortedList_lookup (&all_lists[index], elem[i].key);
+     .      .  184:             if (cur == NULL)
+     .      .  185:             {
+     .      .  186:                 fprintf(stderr, "List corrupted in lookup.\n");
+     .      .  187:                 exit(2);
+     .      .  188:             }
+     .      .  189:             if (SortedList_delete(cur))
+     .      .  190:             {
+     .      .  191:                 fprintf(stderr, "Cannot delete the element.\n");
+     .      .  192:                 exit(2);
+     .      .  193:             };
+     .      .  194:             __sync_lock_release(&s_locks[index]);
+     .      .  195:             wait_time += calc_diff(&start, &end);
+     .      .  196:             break;
+     .      .  197:         default:
+     .      .  198:             cur = SortedList_lookup(&all_lists[index], elem[i].key);
+     .      .  199:             if (cur == NULL)
+     .      .  200:             {
+     .      .  201:                 fprintf(stderr, "List corrupted in lookup.\n");
+     .      .  202:                 exit(2);
+     .      .  203:             }
+     .      .  204:             if (SortedList_delete(cur))
+     .      .  205:             {
+     .      .  206:                 fprintf(stderr, "List corrupted in deletion.\n");
+     .      .  207:                 exit(2);
+     .      .  208:             };
+     .      .  209:             break;
+     .      .  210:         }
+     .      .  211:     }
+     .      .  212: 
+     .      .  213:     return NULL;
+     .      .  214: }
+---
+     .      .  215: 
+     .      .  216: void thread_mangager()
+     .      .  217: {
+     .      .  218:     pthread_t *threads = (pthread_t *) malloc(num_threads * sizeof(pthread_t));
+     .      .  219:     long i;
+ROUTINE ====================== worker in /u/cs/ugrad/weilan/CS_111/lab2/lab2b/lab2_list.c
+  1475   1591 Total samples (flat / cumulative)
+     .      .   69: }
+     .      .   70: 
+     .      .   71: 
+     .      .   72: // The worker function
+     .      .   73: void *worker (void *num)
+---
+     .      .   74: {
+     .      .   75:     int n = *((int *) num);
+     .      .   76:     struct timespec start, end;
+     .      .   77: 
+     .      .   78:     int i;
+     .      .   79:     // insert elements into list
+     .      .   80:     for (i = n; i < num_elements; i += num_threads)
+     .      .   81:     {
+     .      1   82:         unsigned long index = hash_func(elem[i].key) % num_lists;
+     .      .   83:        
+     .      .   84:         switch (lock)
+     .      .   85:         {
+     .      .   86:         case 1:
+     .      .   87:             clock_gettime(CLOCK_MONOTONIC, &start);
+     .      .   88:             pthread_mutex_lock(&m_locks[index]);
+     .      .   89:             clock_gettime(CLOCK_MONOTONIC, &end);
+     .      .   90: 
+     .      .   91:             SortedList_insert(&all_lists[index], &elem[i]);
+     .      .   92: 
+     .      .   93:             pthread_mutex_unlock(&m_locks[index]);
+     .      .   94:             wait_time += calc_diff(&start, &end);
+     .      .   95:             break;
+     .      .   96:         case 2:
+     .      .   97:             clock_gettime(CLOCK_MONOTONIC, &start);
+   773    773   98:             while (__sync_lock_test_and_set(&s_locks[index], 1));
+     .      .   99:             clock_gettime(CLOCK_MONOTONIC, &end);
+     .      .  100: 
+     .     54  101:             SortedList_insert(&all_lists[index], &elem[i]);
+     .      .  102:             __sync_lock_release(&s_locks[index]);
+     .      .  103:             wait_time += calc_diff(&start, &end);
+     .      .  104:             break;
+     .      .  105:         default:
+     .      .  106:             SortedList_insert(&all_lists[index], &elem[i]);
+     .      .  107:             break;
+     .      .  108:         }
+     .      .  109:     }
+     .      .  110: 
+     .      .  111:     // get length
+     .      .  112:     int length = 0;
+     .      .  113: 
+     .      .  114:     switch (lock)
+     .      .  115:     {
+     .      .  116:     case 1:
+     .      .  117:         for (int i = 0; i < num_lists; i++)
+     .      .  118:         {
+     .      .  119:             clock_gettime(CLOCK_MONOTONIC, &start);
+     .      .  120:             pthread_mutex_lock(&m_locks[i]);
+     .      .  121:             clock_gettime(CLOCK_MONOTONIC, &end);
+     .      .  122: 
+     .      .  123:             length += SortedList_length(&all_lists[i]);
+     .      .  124:             pthread_mutex_unlock(&m_locks[i]);
+     .      .  125:             wait_time += calc_diff(&start, &end);
+     .      .  126:         }
+     .      .  127:         break;
+     .      .  128:     case 2:
+     .      .  129:         for (int i = 0; i < num_lists; i++)
+     .      .  130:         {
+     .      .  131:             clock_gettime(CLOCK_MONOTONIC, &start);
+     1      1  132:             while (__sync_lock_test_and_set(&s_locks[i], 1));
+     .      .  133:             clock_gettime(CLOCK_MONOTONIC, &end);
+     .      .  134:             length += SortedList_length(&all_lists[i]);
+     .      .  135:             __sync_lock_release(&s_locks[i]);
+     .      .  136:             wait_time += calc_diff(&start, &end);
+     .      .  137:         }
+     .      .  138:         break;
+     .      .  139:     default:
+     .      .  140:         for (int i = 0; i < num_lists; i++)
+     .      .  141:         {
+     .      .  142:             length += SortedList_length(&all_lists[i]);
+     .      .  143:         }
+     .      .  144:         break;
+     .      .  145:     }
+     .      .  146: 
+     .      .  147:     if (length < 0)
+     .      .  148:     {
+     .      .  149:         fprintf(stderr, "List corrupted in finding length.\n");
+     .      .  150:         exit(2);
+     .      .  151:     }
+     .      .  152: 
+     .      .  153:     // looks up and deletes
+     .      .  154:     for (i = n; i < num_elements; i += num_threads)
+     .      .  155:     {
+     .      .  156:         int index = hash_func(elem[i].key) % num_lists;
+     .      .  157:         SortedListElement_t *cur;
+     .      .  158:         switch (lock)
+     .      .  159:         {
+     .      .  160:         case 1:
+     .      .  161:             clock_gettime(CLOCK_MONOTONIC, &start);
+     .      .  162:             pthread_mutex_lock(&m_locks[index]);
+     .      .  163:             clock_gettime(CLOCK_MONOTONIC, &end);
+     .      .  164: 
+     .      .  165:             cur = SortedList_lookup (&all_lists[index], elem[i].key);
+     .      .  166:             if (cur == NULL)
+     .      .  167:             {
+     .      .  168:                 fprintf(stderr, "List corrupted in lookup.\n");
+     .      .  169:                 exit(2);
+     .      .  170:             }
+     .      .  171:             if (SortedList_delete(cur))
+     .      .  172:             {
+     .      .  173:                 fprintf(stderr, "List corrupted in deletion.\n");
+     .      .  174:                 exit(2);
+     .      .  175:             };
+     .      .  176:             pthread_mutex_unlock(&m_locks[index]);
+     .      .  177:             wait_time += calc_diff(&start, &end);
+     .      .  178:             break;
+     .      .  179:         case 2:
+     .      .  180:             clock_gettime(CLOCK_MONOTONIC, &start);
+   701    701  181:             while (__sync_lock_test_and_set(&s_locks[index], 1));
+     .      .  182:             clock_gettime(CLOCK_MONOTONIC, &end);
+     .     61  183:             cur = SortedList_lookup (&all_lists[index], elem[i].key);
+     .      .  184:             if (cur == NULL)
+     .      .  185:             {
+     .      .  186:                 fprintf(stderr, "List corrupted in lookup.\n");
+     .      .  187:                 exit(2);
+     .      .  188:             }
+     .      .  189:             if (SortedList_delete(cur))
+     .      .  190:             {
+     .      .  191:                 fprintf(stderr, "Cannot delete the element.\n");
+     .      .  192:                 exit(2);
+     .      .  193:             };
+     .      .  194:             __sync_lock_release(&s_locks[index]);
+     .      .  195:             wait_time += calc_diff(&start, &end);
+     .      .  196:             break;
+     .      .  197:         default:
+     .      .  198:             cur = SortedList_lookup(&all_lists[index], elem[i].key);
+     .      .  199:             if (cur == NULL)
+     .      .  200:             {
+     .      .  201:                 fprintf(stderr, "List corrupted in lookup.\n");
+     .      .  202:                 exit(2);
+     .      .  203:             }
+     .      .  204:             if (SortedList_delete(cur))
+     .      .  205:             {
+     .      .  206:                 fprintf(stderr, "List corrupted in deletion.\n");
+     .      .  207:                 exit(2);
+     .      .  208:             };
+     .      .  209:             break;
+     .      .  210:         }
+     .      .  211:     }
+     .      .  212: 
+     .      .  213:     return NULL;
+     .      .  214: }
+---
+     .      .  215: 
+     .      .  216: void thread_mangager()
+     .      .  217: {
+     .      .  218:     pthread_t *threads = (pthread_t *) malloc(num_threads * sizeof(pthread_t));
+     .      .  219:     long i;

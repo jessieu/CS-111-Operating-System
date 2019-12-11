@@ -1,0 +1,20 @@
+1. Introduction
+   The tarball contains the following:
+   - lab3a.c: Read a file system image and analyzes it.
+   - Makefile: build and tun the deliverable program
+   - ext2_fs.h: header file that defines the format of the EXT2 file system
+   - README: report 
+
+2. Challenges
+   There are some problems I have during working on this assignment:
+   1. How to check whether a block is in use or not in a bitmap. 
+      After looking through TA's slide carefully, I understand how the sample code works, which checks whether the bit is set or not in bitmap entries.
+   2. How to calculate the logical block number.
+   	  In the i_block for each inode, I consider the structure from bottom to top. At the very bottom, all of the entries are data blocks, first 12 blocks belongs to first 12 i_block entries, which are direct blocks pointer. The following 12 - block/4 entries belong to single indirect block. Each single inidrect block has block/4 entries, and each double indirect block has block/4 single indirect block, so on and so forth. 
+3. Reference
+   1. Format date and time: https://www.geeksforgeeks.org/strftime-function-in-c/
+   2. Examples on how to read blocks and inodes: http://staff.ustc.edu.cn/~guoyan/os12/fs2.c 
+   3. Understanding the logical block offset in single, double and triple indirect blocks: https://digital-forensics.sans.org/blog/2008/12/24/understanding-indirect-blocks-in-unix-file-systems
+   4. Direct/Indirect Block Addressing: https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout#Direct.2FIndirect_Block_Addressing
+   5. TA Diyu's slide
+   6. Read the entries of directory: http://cs.smith.edu/~nhowe/Teaching/csc262/oldlabs/ext2.html

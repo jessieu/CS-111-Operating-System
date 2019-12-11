@@ -1,0 +1,17 @@
+NAME: Weilan Yu
+EMAIL: yuweilan@g.ucla.edu
+ID: 005119471
+
+S/N: BBGW18031891
+MAC: 2CF7F1067B62
+
+The tarball contains the following:
+    - my_beaglebone.jpg: a selfie of me holding my assembled Beaglebone
+    - connected.png: a screen shot from the USB terminal command session connected to my system, showing that I gave a name and configured network access
+    - copy.png: a screen shot from a local session shows that I copy a hello world program from my laptop to my beaglebone
+    - build_run.png: a screen shot from a WIFI SSH session in which I build and run the trivial hello world program
+    - git.png: a screen shot from a WIFI SSH session in which I install git and clone a repository from my github.
+    - Makefile: build the tarball
+    - README: containing the serial number of my Beaglebone and the WIFI MAC adress
+    
+

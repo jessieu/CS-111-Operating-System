@@ -1,0 +1,72 @@
+1. Introduction
+   lab2_add.c: test the performance of yield and synchronization with multiple threads working on addition 
+   lab2_list.c: test the performance of yield and synchronization with multiple threads working on insertion, deletion, and lookup of a sorted doubly linked list
+   SortedList.h: header file of a sorted doubly linked list
+   SortedList.c: implementation of a sorted doubly linked list
+   lab2_add.csv: data collection for the addition test
+   lab2_list.csv: data collection for the sorted list test
+   Makefile: build a deliverable program, output, graphs, and tarball
+   test.sh: a bash script used to generate test cases and store result into csv file 
+   lab2_add-1.png: threads and iterations required to generate a failure (with and without yields)
+   lab2_add-2.png: average time per operation with and without yields.
+   lab2_add-3.png: average time per (single threaded) operation vs. the number of iterations.
+   lab2_add-4.png: threads and iterations that can run successfully with yields under each of the synchronization options.
+   lab2_add-5.png: average time per (protected) operation vs. the number of threads.
+   lab2_list-1.png: average time per (single threaded) unprotected operation vs. number of iterations
+   lab2_list-2.png: threads and iterations required to generate a failure (with and without yields).
+   lab2_list-3.png: iterations that can run (protected) without failure.
+   lab2_list-4.png: (length-adjusted) cost per operation vs the number of threads for the various synchronization options.
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+2. Answers to the analysis questions
+   Question 2.1.1 - causing conflicts:
+   1. Why does it take many iterations before errors are seen?	    
+      Because with smaller iteration numbers, current thread may be able to finish before next thread is scheduled, and thus reduce the possibility of race.  
+   2. Why does a significantly smaller number of iterations so seldom fail?
+      Same as the above.
+	          
+   Question 2.1.2 - cost of yielding	 
+   1. Why are the --yield runs so much slower?
+      Because a thread voluntarily gave up CPU informs scheduler to schedule next available thread to run. Before the next thread to be able to run, there are several setups, save the PCB of current thread, load next thread's PCB, etc. And these overheads slow down the CPU.
+   2. Where is the additional time going?
+      Additional time are spent on context switching.
+   3. Is it possible to get valid per-operation timings if we are using the --yield option? If so, explain how. If not, explain why not.
+      No, it's not. Because we are using the clock time(clock_gettime()) instead of the CPU time.
+
+   Question 2.1.3 - measurement errors:
+   1. Why does the average cost per operation drop with increasing iterations?
+      Because the time used to create threads would be average out by large number of iterations, given the thread number is fixed.  
+   2. If the cost per iteration is a function of the number of iterations, how do we know how many iterations to run (or what the "correct" cost is)?	    
+      When the cost analysis becomes stable.
+
+   Question 2.1.4 - costs of serialization:
+   1. Why do all of the options perform similarly for low numbers of threads?
+      Less race and conflict would occur with less threads.
+   2. Why do the three protected operations slow down as the number of threads rises?
+      With using the protected options, threads need to wait until the lock is available, and thus, more threads, more waiting, which increases the time needed for operation. 
+
+   Question 2.2.1 - scalability of Mutex:
+   1. Compare the variation in time per mutex-protected operation vs the number of threads in Part-1 (adds) and Part-2 (sorted lists).
+      The slope of mutex-protected operation in the sorted list test is much more steeper than the one in addition test. It's because as the number of threads increase, there are more memory contention and thus, sorted list operation takes more time to wait for other threads to complete than addition.
+   2. Comment on the general shapes of the curves, and explain why they have this shape.
+      For sorted list operation, the shape is almost linear, while the addition operation's curve increases then becomes flatter. It's because the operation in sorted list takes cost more and thus, the cost of per operation goes up rapidly.
+   3. Comment on the relative rates of increase and differences in the shapes of the curves, and offer an explanation for these differences.
+      Inserting, deleting and lookup requires more operations on memory, and thus the operation times cost more than addition.
+
+   Question 2.2.2 - scalability of spin locks
+   1. Compare the variation in time per protected operation vs the number of threads for list operations protected by Mutex vs Spin locks. Comment on the general shapes of the curves, and explain why they have this shape.
+      Spin locks has higher cost than mutex. From the graph, it is clear that both mutex and spin locks curve grow as the number of threads increases, however, the slope of spin lock is more steeper than mutex's.
+   2. Comment on the relative rates of increase and differences in the shapes of the curves, and offer an explanation for these differences.
+      Two curves start from the same point, though at the beginning, cost of mutex is a little bit higher than spin lock. In general, as the number of threads increase, spin lock costs more than mutex. It is because when a lock is held by other thread, spin lock keeps checking whether the lock is available or not, which wastes CPU, while mutex would put current thread to sleep until the lock is released. 
+
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+3. Reference 
+   1. Mutex Lock Example: https://docs.oracle.com/cd/E19683-01/806-6867/sync-12/index.html
+   2. __sync_lock_test_and_set Example: https://attractivechaos.wordpress.com/2011/10/06/multi-threaded-programming-efficiency-of-locking/
+   3. __sync_val_compare_and_swap Example: https://stackoverflow.com/questions/2975485/atomic-swap-with-cas-using-gcc-sync-builtins
+   4. Posix Thread Creation and Termination: https://www.cs.cmu.edu/afs/cs/academic/class/15492-f07/www/pthreads.html
+   5. clock_gettime and calculation of elapsed time Example: https://www.cs.rutgers.edu/~pxk/416/notes/c-tutorials/gettime.html
+   6. Random string generator: https://codereview.stackexchange.com/questions/29198/random-string-generator-in-c

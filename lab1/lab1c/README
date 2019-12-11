@@ -1,0 +1,42 @@
+1. Introduction
+   This program implement a simple shell, which support several option.
+     --rdonly filename: open file with read only
+     --wronly filename: open file with write only
+     --rdwr filename: open file with read and write
+
+   These three open file options can be used together with other flags, which needs to be put before the file open option.
+     --append: write to the end of a file
+     --cloexec: close file descriptor when exec-family functions succeed
+     --creat: create a file if not exists
+     --directory: check whether the open path is a directory or not
+     --dsync: guarantee the file data is written to disk when syscall returns
+     --excl: ensure the call creates the file; when it is used with "creat", if the file exists, open fails.
+     --nofollow: if open path is a symbolic link, then the open fails
+     --nonblock: the file is opened in non-blocking mode
+     --rsync: have each read operation on the fd wait until any pending writes for the same portion of the file are complete(MacOS does not recognize this flag).
+     --sync:the file is opened for synchronous I/O
+     --trunc: if the file already exists and is a regular file and then open allows writing, the file will be truncated to length 0
+
+   Other than open files, this program also supports:
+    --command: execute shell command
+    --pipe: creat a pipe, which has similar behavior as shell command "|"
+    --wait: wait for all processes finish
+    --chdir: change directory
+    --close: close a file
+    --verbose: print command name
+    --abort: crash the shell by segfault
+    --catch: catch a certain signal by specifying the signal number and handle it with user defined signal handler
+    --ignore: ignore a certain signal by specifying the signal number
+    --default: catch a certain signal and handle it by defaule signal handler
+    --pause: pause, waiting for a signal to arrive
+    --profile: output a line to stdput containing the resources(CPU time) used.
+
+2. Challenges
+   The most challenging thing in this lab to figure out how to use getrusage and convert the time difference into same format as the output of bash/dash time.  
+
+3. Limitations
+   There's a large gap between the testcase performance of simpsh and bash/dash as pointed out in the report. 
+
+4. References
+   1. Meaning of time command output: https://stackoverflow.com/questions/556405/what-do-real-user-and-sys-mean-in-the-output-of-time1
+   2. calculate elapsed time: https://www.gnu.org/software/libc/manual/html_node/Elapsed-Time.html

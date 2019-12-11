@@ -1,0 +1,71 @@
+1. Introduction
+   This program implement a simple shell, which support several option.
+     --rdonly filename: open file with read only
+     --wronly filename: open file with write only
+     --rdwr filename: open file with read and write
+
+   These three open file options can be used together with other flags, which needs to be put before the file open option.
+     --append: write to the end of a file
+     --cloexec: close file descriptor when exec-family functions succeed
+     --creat: create a file if not exists
+     --directory: check whether the open path is a directory or not
+     --dsync: guarantee the file data is written to disk when syscall returns
+     --excl: ensure the call creates the file; when it is used with "creat", if the file exists, open fails.
+     --nofollow: if open path is a symbolic link, then the open fails
+     --nonblock: the file is opened in non-blocking mode
+     --rsync: have each read operation on the fd wait until any pending writes for the same portion of the file are complete(MacOS does not recognize this flag).
+     --sync:the file is opened for synchronous I/O
+     --trunc: if the file already exists and is a regular file and then open allows writing, the file will be truncated to length 0
+
+   Other than open files, this program also supports:
+    --command: execute shell command
+    --pipe: creat a pipe, which has similar behavior as shell command "|"
+    --wait: wait for all processes finish
+    --chdir: change directory
+    --close: close a file
+    --verbose: print command name
+    --abort: crash the shell by segfault
+    --catch: catch a certain signal by specifying the signal number and handle it with user defined signal handler
+    --ignore: ignore a certain signal by specifying the signal number
+    --default: catch a certain signal and handle it by defaule signal handler
+    --pause: pause, waiting for a signal to arrive
+
+2. Testcases
+  There are 6 test cases, which test an invalid input, verbose option, cat command, pipe and command, reuse closed file descriptor, and append flag. All of them passed.
+
+3. Challenges
+    1. How to use a pipe.
+       -- unidirectional communication link
+       -- A pipe will generate 2 file descriptors, one for the read end and one for the write end.
+       -- I spend a lot of time on figuring out how to make it work. Because I did not close the pipe, there's an infinite 
+          wait when "--wait" is called. For the pipe, after use dup2, we need to close all the other file descriptors(do not need to mark it as -1). Since dup2 has makes 0, 1, 2 points to the desired file, close the unwanted file descriptor, which force read and write from/to pipe if pipe is called. 
+
+    2. Pipe(`|`) vs. Redirection(`>`)
+       -- Pipe takes an output from a program and direct it as an input of another program.
+       -- Redirection is similar to pipe except using files rather than another program.
+          It directs the standard output, which is the screen, to a file.
+    3. exit with maximum signal
+       At the beginning, I implement it with simply called exit on the global variable max_sig, however, I did not get the correct exit status on test case. Then I reread the spec, and found that if the child received some signal, it should be terminated by the max signal number. Terminate by signal and calling exit with the signal number are different. I try to call kill(getpid(),max_sig), which doesn't work either. Actually, it need to be used after set the signal handler to default, which would allow the process be killed by the user defined signal. By the way, kill(getpid(), max_sig) is the same as raise(max_sig). Since raise() calls kill(). 
+
+4. Limitation
+   1. I did not use dynamic allocation, just simply assume the number of file descriptors and command length would not 
+      greater than 256.
+   2. I put all my codes inside the main function, which looks really long.
+
+5. References
+   1. Open a file with multiple flags.
+      https://stackoverflow.com/questions/22008229/bitwise-or-in-linux-open-flags
+   2. Flags used in implementations.
+      https://pubs.opengroup.org/onlinepubs/9699919799/functions/open.html
+   3. Examples on pipe.
+      https://www.cs.rutgers.edu/~pxk/416/notes/c-tutorials/pipe.html
+   4. Pipe vs. Redirection
+      https://www.maketecheasier.com/pipes-redirection-for-linux-command-line/
+   5. Child status information
+      https://www.geeksforgeeks.org/wait-system-call-c/
+   6. Send signal to the calling process
+      https://www.usna.edu/Users/cs/aviv/classes/ic221/s16/lec/19/lec.html
+   7. Kill a process by sending signal
+      https://users.cs.cf.ac.uk/Dave.Marshall/C/node24.html
+   8. Kill and raise
+      http://poincare.matf.bg.ac.rs/~ivana/courses/ps/sistemi_knjige/pomocno/apue/APUE/0201433079/ch10lev1sec9.html

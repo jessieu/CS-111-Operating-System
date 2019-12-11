@@ -1,0 +1,26 @@
+1. Introduction
+   The tarball contains the following:
+   - lab3b.py: Read a file system csv file, examinate and report inconsistencies if any.
+   - Makefile: build and tun the deliverable program
+   - README: report 
+
+
+2. Challenges
+   1. Check the correctness of '.' and '..'
+      The directory inode number entry for "." reference itself, so its parent inode number is the same as its reference inode.
+      
+      The directory inode number entry for ".." reference to the parent directory. The most important thing is if the directory is the root directory, its value is the same as itself. Thus, while traversing the directory entries and map parent and child, the reference inode = 2 (inode 2 is used by root directory) needed to skip.
+   
+   2. Organization
+   	  The consistency check is kind of hard to put them in a sequential order as the spec. In some checks, need to store the value and use it later, thus, it may take a few more iterations go through all inodes and dirents.
+
+   3. Python
+   	  Python syntax is simple and can handle the data processing easily. But because it is dynamic typed language, you only know there are bugs in your code after you run the program. 
+
+
+3. References
+   1. What FSCK does: https://docs.oracle.com/cd/E19455-01/805-7228/6j6q7uf0e/index.html
+   2. What is Inode 2: https://unix.stackexchange.com/questions/198673/why-does-have-the-inode-2
+   3. Directory Structure in EXT2: https://www.slideshare.net/Vinvoro/lect10
+   4. TA Diyu's slide 	
+

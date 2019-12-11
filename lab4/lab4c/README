@@ -1,0 +1,18 @@
+1. Introduction
+	- lab4c_tcp.c: open a TCP connection to server, send temperature to the server and log 
+	- lab4c_tls.c: open a TSL connection to server, send temperature to the server and log
+	- Makefile: build and test
+		- default ... build program.
+		- clean ... delete all programs and output created by the Makefile and restore the directory to its freshly untarred state.
+		- dist ... create the deliverable tarball.
+	- README	
+
+2. Challenges
+	- deprecated TLSv1_client_method(): I suppress the deprecated warning by compiling with 
+	  "-Wno-deprecated-declarations" flag
+
+3. References
+	1. tcp and tls connection functions: TA Diyu's slide
+	2. tcp connection error checking: https://www.cs.utah.edu/~swalton/listings/articles/ssl_client.c
+	
+	
