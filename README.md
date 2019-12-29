@@ -1,1 +1,1 @@
-# CS-111-Operating-System
+# CS111 Operating System Fall 2019 taught by Professor Eggert
